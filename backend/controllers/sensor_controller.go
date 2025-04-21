@@ -18,16 +18,6 @@ func CreateSensor(c *gin.Context) {
 		return
 	}
 
-	// Validate coordinates
-	if sensor.Coordinates.Latitude < -90 || sensor.Coordinates.Latitude > 90 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Latitude must be between -90 and 90 degrees"})
-		return
-	}
-	if sensor.Coordinates.Longitude < -180 || sensor.Coordinates.Longitude > 180 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Longitude must be between -180 and 180 degrees"})
-		return
-	}
-
 	collection := config.GetCollection("sensors")
 	result, err := collection.InsertOne(context.Background(), sensor)
 	if err != nil {
@@ -76,4 +66,68 @@ func GetSensor(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, sensor)
+}
+
+func UpdateSensor(c *gin.Context) {
+	id := c.Param("id")
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	var sensor models.Sensor
+	if err := c.ShouldBindJSON(&sensor); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	collection := config.GetCollection("sensors")
+	update := bson.M{
+		"$set": bson.M{
+			"name":     sensor.Name,
+			"location": sensor.Location,
+			"picture":  sensor.Picture,
+		},
+	}
+
+	result, err := collection.UpdateOne(
+		context.Background(),
+		bson.M{"_id": objectID},
+		update,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Sensor not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Sensor updated successfully"})
+}
+
+func DeleteSensor(c *gin.Context) {
+	id := c.Param("id")
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	collection := config.GetCollection("sensors")
+	result, err := collection.DeleteOne(context.Background(), bson.M{"_id": objectID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if result.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Sensor not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Sensor deleted successfully"})
 }

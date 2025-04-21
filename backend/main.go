@@ -22,6 +22,8 @@ func main() {
 	r.POST("/sensors", controllers.CreateSensor)
 	r.GET("/sensors", controllers.GetSensors)
 	r.GET("/sensors/:id", controllers.GetSensor)
+	r.PUT("/sensors/:id", controllers.UpdateSensor)
+	r.DELETE("/sensors/:id", controllers.DeleteSensor)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"Server": "Running"})
@@ -31,6 +33,6 @@ func main() {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
 
-	r.Run(":8080") // เปิดพอร์ต 8080
+	r.Run("0.0.0.0:8080") // เปิดพอร์ต 8080
 
 }
