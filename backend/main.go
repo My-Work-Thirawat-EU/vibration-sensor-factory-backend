@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/ThirawatEu/vibration-sensor-gas-pipe/config"
 	"github.com/ThirawatEu/vibration-sensor-gas-pipe/controllers"
@@ -33,6 +34,9 @@ func main() {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
 
-	r.Run("0.0.0.0:8080") // เปิดพอร์ต 8080
-
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	r.Run("0.0.0.0:" + port)
 }
