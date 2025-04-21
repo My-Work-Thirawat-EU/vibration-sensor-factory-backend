@@ -10,4 +10,3 @@ type Sensor struct {
 	Location string             `json:"location" bson:"location"`
 	Picture  string             `json:"picture" bson:"picture"` // This will store the URL or base64 of the picture
 }
-cd
