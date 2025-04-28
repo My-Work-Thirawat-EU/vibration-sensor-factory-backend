@@ -17,23 +17,59 @@ func main() {
 		log.Fatal("Failed to connect to MongoDB:", err)
 	}
 
+	// Initialize default warnings
+	err = controllers.InitializeWarnings()
+	if err != nil {
+		log.Fatal("Failed to initialize warnings:", err)
+	}
+
+	// Initialize Gin router
 	r := gin.Default()
 
-	// Sensor routes
-	r.POST("/sensors", controllers.CreateSensor)
-	r.GET("/sensors", controllers.GetSensors)
-	r.GET("/sensors/:id", controllers.GetSensor)
-	r.PUT("/sensors/:id", controllers.UpdateSensor)
-	r.DELETE("/sensors/:id", controllers.DeleteSensor)
+	// Sensor Management Routes
+	// Handles CRUD operations for vibration sensors
+	r.POST("/sensors", controllers.CreateSensor)            // Create new sensor
+	r.GET("/sensors", controllers.GetSensors)               // Get all sensors
+	r.GET("/sensors/:id", controllers.GetSensor)            // Get specific sensor
+	r.PUT("/sensors/:id", controllers.UpdateSensor)         // Update sensor
+	r.DELETE("/sensors/:id", controllers.DeleteSensor)      // Delete sensor
+	r.POST("/sensors/register", controllers.RegisterSensor) // Register sensor and get token
 
+	// User Management Routes
+	// Handles user registration, authentication, and management
+	r.POST("/users", controllers.CreateUser)       // Register new user
+	r.GET("/users", controllers.GetUsers)          // Get all users
+	r.GET("/users/:id", controllers.GetUser)       // Get specific user
+	r.PUT("/users/:id", controllers.UpdateUser)    // Update user
+	r.DELETE("/users/:id", controllers.DeleteUser) // Delete user
+
+	r.POST("/login", controllers.Login)                // User login
+	r.POST("/refresh-token", controllers.RefreshToken) // Refresh access token
+
+	// Warning Management Routes
+	// Handles retrieval of warning information
+	r.GET("/warnings", controllers.GetWarnings)    // Get all warnings
+	r.GET("/warnings/:id", controllers.GetWarning) // Get specific warning
+
+	// Vibration Data Routes
+	r.POST("/vibrations", controllers.CreateVibration)
+	r.GET("/vibrations", controllers.GetVibrations)
+	r.GET("/vibrations/:id", controllers.GetVibration)
+	r.PUT("/vibrations/:id", controllers.UpdateVibration)
+	r.DELETE("/vibrations/:id", controllers.DeleteVibration)
+
+	// Health Check Routes
+	// Basic endpoints to check server status
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"Server": "Running"})
 	})
 
-	r.GET("/ping", func(c *gin.Context) {
+	r.GET("/Bruh", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
 
+	// Server Configuration
+	// Set port from environment variable or default to 8080
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
