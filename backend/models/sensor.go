@@ -18,4 +18,5 @@ type Sensor struct {
 	Location     string             `json:"location" bson:"location"`
 	Picture      string             `json:"picture" bson:"picture"`
 	Config       SensorConfig       `json:"config" bson:"config"`
+	Token        string             `json:"token,omitempty" bson:"token,omitempty"`
 }

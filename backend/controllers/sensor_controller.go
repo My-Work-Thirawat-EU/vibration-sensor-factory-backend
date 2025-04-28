@@ -2,14 +2,14 @@ package controllers
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
-	"time"
 
 	"github.com/ThirawatEu/vibration-sensor-gas-pipe/config"
 	"github.com/ThirawatEu/vibration-sensor-gas-pipe/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -161,16 +161,28 @@ func RegisterSensor(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sensor_id": sensor.ID.Hex(),
-		"exp":       time.Now().Add(time.Hour * 24 * 30).Unix(), // 30 days expiration
-	})
-
-	// Sign the token with a secret key
-	tokenString, err := token.SignedString([]byte(config.GetConfig().JWTSecret))
-	if err != nil {
+	// Generate 32-byte random token
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
+		return
+	}
+	tokenString := hex.EncodeToString(tokenBytes)
+
+	// Update sensor with new token
+	update := bson.M{
+		"$set": bson.M{
+			"token": tokenString,
+		},
+	}
+
+	_, err = collection.UpdateOne(
+		context.Background(),
+		bson.M{"_id": sensor.ID},
+		update,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating sensor token"})
 		return
 	}
 
