@@ -142,6 +142,14 @@ func DeleteSensor(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Sensor deleted successfully"})
 }
 
+func generateTokenHex(length int) (string, error) {
+	tokenBytes := make([]byte, length)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(tokenBytes), nil
+}
+
 func RegisterSensor(c *gin.Context) {
 	var request struct {
 		SerialNumber string `json:"serial_number" binding:"required"`
@@ -152,37 +160,43 @@ func RegisterSensor(c *gin.Context) {
 		return
 	}
 
-	// Check if sensor exists
 	collection := config.GetCollection("sensors")
 	var sensor models.Sensor
+
+	// Find sensor by serial number
 	err := collection.FindOne(context.Background(), bson.M{"serial_number": request.SerialNumber}).Decode(&sensor)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Sensor not found"})
 		return
 	}
 
-	// Generate 32-byte random token
-	tokenBytes := make([]byte, 32)
-	if _, err := rand.Read(tokenBytes); err != nil {
+	// Generate 32 bytes token (will become 64 hex characters)
+	tokenString, err := generateTokenHex(32)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
 		return
 	}
-	tokenString := hex.EncodeToString(tokenBytes)
 
-	// Update sensor with new token
+	// Update sensor document with the generated token
 	update := bson.M{
 		"$set": bson.M{
 			"token": tokenString,
 		},
 	}
 
-	_, err = collection.UpdateOne(
+	result, err := collection.UpdateOne(
 		context.Background(),
 		bson.M{"_id": sensor.ID},
 		update,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating sensor token"})
+		return
+	}
+
+	// Extra safety: check if the sensor matched
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Sensor not found during update"})
 		return
 	}
 
