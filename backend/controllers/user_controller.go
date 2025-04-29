@@ -320,3 +320,63 @@ func RefreshToken(c *gin.Context) {
 		"expires_at":    tokenExpiry,
 	})
 }
+
+func BatchRegisterUsers(c *gin.Context) {
+	var users []models.User
+	if err := c.ShouldBindJSON(&users); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	collection := config.GetCollection("users")
+	var results []models.User
+	var errors []string
+
+	for _, user := range users {
+		// Hash the password before storing
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+		if err != nil {
+			errors = append(errors, "Error hashing password for user: "+user.Username)
+			continue
+		}
+		user.Password = string(hashedPassword)
+
+		// Generate tokens
+		accessToken, refreshToken, tokenExpiry, err := generateTokens(user.ID)
+		if err != nil {
+			errors = append(errors, "Error generating tokens for user: "+user.Username)
+			continue
+		}
+
+		user.Token = accessToken
+		user.RefreshToken = refreshToken
+		user.TokenExpiry = tokenExpiry
+
+		result, err := collection.InsertOne(context.Background(), user)
+		if err != nil {
+			errors = append(errors, "Error creating user: "+user.Username)
+			continue
+		}
+
+		user.ID = result.InsertedID.(primitive.ObjectID)
+		// Don't send password back
+		user.Password = ""
+		results = append(results, user)
+	}
+
+	response := gin.H{
+		"successful_registrations": len(results),
+		"failed_registrations":     len(errors),
+		"users":                    results,
+	}
+
+	if len(errors) > 0 {
+		response["errors"] = errors
+	}
+
+	if len(results) > 0 {
+		c.JSON(http.StatusCreated, response)
+	} else {
+		c.JSON(http.StatusBadRequest, response)
+	}
+}

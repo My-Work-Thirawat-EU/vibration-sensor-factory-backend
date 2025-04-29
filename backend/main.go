@@ -28,20 +28,22 @@ func main() {
 
 	// Sensor Management Routes
 	// Handles CRUD operations for vibration sensors
-	r.POST("/sensors", controllers.CreateSensor)            // Create new sensor
-	r.GET("/sensors", controllers.GetSensors)               // Get all sensors
-	r.GET("/sensors/:id", controllers.GetSensor)            // Get specific sensor
-	r.PUT("/sensors/:id", controllers.UpdateSensor)         // Update sensor
-	r.DELETE("/sensors/:id", controllers.DeleteSensor)      // Delete sensor
-	r.POST("/sensors/register", controllers.RegisterSensor) // Register sensor and get token
+	r.POST("/sensors", controllers.CreateSensor)                        // Create new sensor
+	r.POST("/sensors/batch-register", controllers.BatchRegisterSensors) // Batch register sensors
+	r.GET("/sensors", controllers.GetSensors)                           // Get all sensors
+	r.GET("/sensors/:id", controllers.GetSensor)                        // Get specific sensor
+	r.PUT("/sensors/:id", controllers.UpdateSensor)                     // Update sensor
+	r.DELETE("/sensors/:id", controllers.DeleteSensor)                  // Delete sensor
+	r.POST("/sensors/register", controllers.RegisterSensor)             // Register sensor and get token
 
 	// User Management Routes
 	// Handles user registration, authentication, and management
-	r.POST("/users", controllers.CreateUser)       // Register new user
-	r.GET("/users", controllers.GetUsers)          // Get all users
-	r.GET("/users/:id", controllers.GetUser)       // Get specific user
-	r.PUT("/users/:id", controllers.UpdateUser)    // Update user
-	r.DELETE("/users/:id", controllers.DeleteUser) // Delete user
+	r.POST("/users", controllers.CreateUser)                        // Register new user
+	r.POST("/users/batch-register", controllers.BatchRegisterUsers) // Batch register users
+	r.GET("/users", controllers.GetUsers)                           // Get all users
+	r.GET("/users/:id", controllers.GetUser)                        // Get specific user
+	r.PUT("/users/:id", controllers.UpdateUser)                     // Update user
+	r.DELETE("/users/:id", controllers.DeleteUser)                  // Delete user
 
 	r.POST("/login", controllers.Login)                // User login
 	r.POST("/refresh-token", controllers.RefreshToken) // Refresh access token
@@ -53,6 +55,7 @@ func main() {
 
 	// Vibration Data Routes
 	r.POST("/vibrations", controllers.CreateVibration)
+	r.POST("/vibrations/batch-register", controllers.BatchRegisterVibrations)
 	r.GET("/vibrations", controllers.GetVibrations)
 	r.GET("/vibrations/:id", controllers.GetVibration)
 	r.PUT("/vibrations/:id", controllers.UpdateVibration)

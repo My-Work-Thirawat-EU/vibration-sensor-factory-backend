@@ -205,3 +205,50 @@ func RegisterSensor(c *gin.Context) {
 		"sensor_id": sensor.ID.Hex(),
 	})
 }
+
+func BatchRegisterSensors(c *gin.Context) {
+	var sensors []models.Sensor
+	if err := c.ShouldBindJSON(&sensors); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	collection := config.GetCollection("sensors")
+	var results []models.Sensor
+	var errors []string
+
+	for _, sensor := range sensors {
+		// Generate token for each sensor
+		tokenString, err := generateTokenHex(32)
+		if err != nil {
+			errors = append(errors, "Error generating token for sensor: "+sensor.SerialNumber)
+			continue
+		}
+		sensor.Token = tokenString
+
+		result, err := collection.InsertOne(context.Background(), sensor)
+		if err != nil {
+			errors = append(errors, "Error creating sensor: "+sensor.SerialNumber)
+			continue
+		}
+
+		sensor.ID = result.InsertedID.(primitive.ObjectID)
+		results = append(results, sensor)
+	}
+
+	response := gin.H{
+		"successful_registrations": len(results),
+		"failed_registrations":     len(errors),
+		"sensors":                  results,
+	}
+
+	if len(errors) > 0 {
+		response["errors"] = errors
+	}
+
+	if len(results) > 0 {
+		c.JSON(http.StatusCreated, response)
+	} else {
+		c.JSON(http.StatusBadRequest, response)
+	}
+}
