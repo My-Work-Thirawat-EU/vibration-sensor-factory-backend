@@ -30,7 +30,7 @@ func main() {
 	// Handles CRUD operations for vibration sensors
 	r.POST("/sensors/register", controllers.RegisterSensor)             // Register sensor and get token
 	r.POST("/sensors", controllers.CreateSensor)                        // Create new sensor
-	r.POST("/sensors/batch-register", controllers.BatchRegisterSensors) // Batch register sensors
+	r.POST("/sensors/batch-create", controllers.BatchCreateSensors) // Batch register sensors
 	r.GET("/sensors", controllers.GetSensors)                           // Get all sensors
 	r.GET("/sensors/:id", controllers.GetSensor)                        // Get specific sensor
 	r.PUT("/sensors/:id", controllers.UpdateSensor)                     // Update sensor
