@@ -28,13 +28,13 @@ func main() {
 
 	// Sensor Management Routes
 	// Handles CRUD operations for vibration sensors
+	r.POST("/sensors/register", controllers.RegisterSensor)             // Register sensor and get token
 	r.POST("/sensors", controllers.CreateSensor)                        // Create new sensor
 	r.POST("/sensors/batch-register", controllers.BatchRegisterSensors) // Batch register sensors
 	r.GET("/sensors", controllers.GetSensors)                           // Get all sensors
 	r.GET("/sensors/:id", controllers.GetSensor)                        // Get specific sensor
 	r.PUT("/sensors/:id", controllers.UpdateSensor)                     // Update sensor
 	r.DELETE("/sensors/:id", controllers.DeleteSensor)                  // Delete sensor
-	r.POST("/sensors/register", controllers.RegisterSensor)             // Register sensor and get token
 
 	// User Management Routes
 	// Handles user registration, authentication, and management
