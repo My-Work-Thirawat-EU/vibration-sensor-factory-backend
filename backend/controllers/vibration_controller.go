@@ -105,7 +105,7 @@ func GetVibrations(c *gin.Context) {
 	opts := options.Find().
 		SetSkip(int64(skip)).
 		SetLimit(int64(limit)).
-		SetSort(bson.D{{"timestamp", -1}})
+		SetSort(bson.D{{Key: "timestamp", Value: -1}})
 
 	cursor, err := collection.Find(context.Background(), filter, opts)
 	if err != nil {
