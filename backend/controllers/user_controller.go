@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
@@ -203,20 +204,29 @@ func Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&loginData); err != nil {
+		log.Printf("Login error - Invalid request data: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	log.Printf("Login attempt for user: %s", loginData.Username)
 
 	var user models.User
 	collection := config.GetCollection("users")
 	err := collection.FindOne(context.Background(), bson.M{"username": loginData.Username}).Decode(&user)
 	if err != nil {
+		log.Printf("Login error - User not found: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
 
+	log.Printf("Found user in database. Comparing passwords...")
+	log.Printf("Stored hashed password: %s", user.Password)
+	log.Printf("Attempting to compare with provided password: %s", loginData.Password)
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginData.Password))
 	if err != nil {
+		log.Printf("Login error - Invalid password: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
@@ -224,6 +234,7 @@ func Login(c *gin.Context) {
 	// Generate new tokens
 	accessToken, refreshToken, tokenExpiry, err := generateTokens(user.ID)
 	if err != nil {
+		log.Printf("Login error - Token generation failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating tokens"})
 		return
 	}
@@ -243,6 +254,7 @@ func Login(c *gin.Context) {
 		update,
 	)
 	if err != nil {
+		log.Printf("Login error - Failed to update tokens: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating tokens"})
 		return
 	}
@@ -253,6 +265,7 @@ func Login(c *gin.Context) {
 	user.RefreshToken = refreshToken
 	user.TokenExpiry = tokenExpiry
 
+	log.Printf("Login successful for user: %s", loginData.Username)
 	c.JSON(http.StatusOK, user)
 }
 
@@ -379,4 +392,35 @@ func BatchRegisterUsers(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusBadRequest, response)
 	}
+}
+func Logout(c *gin.Context) {
+	// Get user ID from token
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	// Clear tokens in database
+	collection := config.GetCollection("users")
+	update := bson.M{
+		"$set": bson.M{
+			"token":         "",
+			"refresh_token": "",
+			"token_expiry":  time.Time{},
+		},
+	}
+
+	_, err := collection.UpdateOne(
+		context.Background(),
+		bson.M{"_id": userID},
+		update,
+	)
+	if err != nil {
+		log.Printf("Logout error - Failed to clear tokens: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error clearing tokens"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }

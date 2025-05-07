@@ -21,35 +21,28 @@ func CreateVibration(c *gin.Context) {
 		return
 	}
 
-	// Validate sensor ID
-	if vibration.SensorID.IsZero() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Sensor ID is required"})
+	// Validate serial number
+	if vibration.SerialNumber == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Serial number is required"})
 		return
 	}
 
 	// Check if sensor exists
 	sensorCollection := config.GetCollection("sensors")
 	var sensor models.Sensor
-	err := sensorCollection.FindOne(context.Background(), bson.M{"_id": vibration.SensorID}).Decode(&sensor)
+	err := sensorCollection.FindOne(context.Background(), bson.M{"serial_number": vibration.SerialNumber}).Decode(&sensor)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid sensor ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid serial number"})
 		return
 	}
 
-	// Validate warning ID if provided
-	if !vibration.WarnID.IsZero() {
-		warningCollection := config.GetCollection("warnings")
-		var warning models.Warning
-		err := warningCollection.FindOne(context.Background(), bson.M{"_id": vibration.WarnID}).Decode(&warning)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid warning ID"})
-			return
-		}
+	// Validate FFT data
+	if len(vibration.FFTX) == 0 || len(vibration.FFTY) == 0 || len(vibration.FFTZ) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "FFT data is required for all axes"})
+		return
 	}
 
-	if vibration.Timestamp.IsZero() {
-		vibration.Timestamp = time.Now()
-	}
+	vibration.CreatedAt = time.Now()
 
 	collection := config.GetCollection("vibrations")
 	result, err := collection.InsertOne(context.Background(), vibration)
@@ -73,30 +66,22 @@ func GetVibrations(c *gin.Context) {
 
 	filter := bson.M{}
 
-	if sensorID := c.Query("sensor_id"); sensorID != "" {
-		if id, err := primitive.ObjectIDFromHex(sensorID); err == nil {
-			filter["sensor_id"] = id
-		}
-	}
-
-	if warnID := c.Query("warn_id"); warnID != "" {
-		if id, err := primitive.ObjectIDFromHex(warnID); err == nil {
-			filter["warn_id"] = id
-		}
+	if serialNumber := c.Query("serial_number"); serialNumber != "" {
+		filter["serial_number"] = serialNumber
 	}
 
 	if startDate := c.Query("start_date"); startDate != "" {
 		if t, err := time.Parse(time.RFC3339, startDate); err == nil {
-			filter["timestamp"] = bson.M{"$gte": t}
+			filter["created_at"] = bson.M{"$gte": t}
 		}
 	}
 
 	if endDate := c.Query("end_date"); endDate != "" {
 		if t, err := time.Parse(time.RFC3339, endDate); err == nil {
-			if _, ok := filter["timestamp"]; ok {
-				filter["timestamp"].(bson.M)["$lte"] = t
+			if _, ok := filter["created_at"]; ok {
+				filter["created_at"].(bson.M)["$lte"] = t
 			} else {
-				filter["timestamp"] = bson.M{"$lte": t}
+				filter["created_at"] = bson.M{"$lte": t}
 			}
 		}
 	}
@@ -105,7 +90,7 @@ func GetVibrations(c *gin.Context) {
 	opts := options.Find().
 		SetSkip(int64(skip)).
 		SetLimit(int64(limit)).
-		SetSort(bson.D{{Key: "timestamp", Value: -1}})
+		SetSort(bson.D{{Key: "created_at", Value: -1}})
 
 	cursor, err := collection.Find(context.Background(), filter, opts)
 	if err != nil {
@@ -173,18 +158,16 @@ func UpdateVibration(c *gin.Context) {
 	collection := config.GetCollection("vibrations")
 	update := bson.M{
 		"$set": bson.M{
-			"sensor_id":   vib.SensorID,
-			"warn_id":     vib.WarnID,
-			"timestamp":   vib.Timestamp,
-			"x_axisg":     vib.X_Axisg,
-			"y_axisg":     vib.Y_Axisg,
-			"z_axisg":     vib.Z_Axisg,
-			"x_axismm_s2": vib.X_Axismm_s2,
-			"y_axismm_s2": vib.Y_Axismm_s2,
-			"z_axismm_s2": vib.Z_Axismm_s2,
-			"x_axismm_s":  vib.X_Axismm_s,
-			"y_axismm_s":  vib.Y_Axismm_s,
-			"z_axismm_s":  vib.Z_Axismm_s,
+			"serial_number": vib.SerialNumber,
+			"fft_x":         vib.FFTX,
+			"fft_y":         vib.FFTY,
+			"fft_z":         vib.FFTZ,
+			"rms_x":         vib.RMSX,
+			"rms_y":         vib.RMSY,
+			"rms_z":         vib.RMSZ,
+			"peak_x":        vib.PeakX,
+			"peak_y":        vib.PeakY,
+			"peak_z":        vib.PeakZ,
 		},
 	}
 
@@ -238,35 +221,30 @@ func BatchRegisterVibrations(c *gin.Context) {
 
 	// Validate each vibration entry
 	for _, vibration := range vibrations {
-		// Validate sensor ID
-		if vibration.SensorID.IsZero() {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Sensor ID is required for all entries"})
+		// Validate serial number
+		if vibration.SerialNumber == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Serial number is required for all entries"})
 			return
 		}
 
 		// Check if sensor exists
 		sensorCollection := config.GetCollection("sensors")
 		var sensor models.Sensor
-		err := sensorCollection.FindOne(context.Background(), bson.M{"_id": vibration.SensorID}).Decode(&sensor)
+		err := sensorCollection.FindOne(context.Background(), bson.M{"serial_number": vibration.SerialNumber}).Decode(&sensor)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid sensor ID: " + vibration.SensorID.Hex()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid serial number: " + vibration.SerialNumber})
 			return
 		}
 
-		// Validate warning ID if provided
-		if !vibration.WarnID.IsZero() {
-			warningCollection := config.GetCollection("warnings")
-			var warning models.Warning
-			err := warningCollection.FindOne(context.Background(), bson.M{"_id": vibration.WarnID}).Decode(&warning)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid warning ID: " + vibration.WarnID.Hex()})
-				return
-			}
+		// Validate FFT data
+		if len(vibration.FFTX) == 0 || len(vibration.FFTY) == 0 || len(vibration.FFTZ) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "FFT data is required for all axes"})
+			return
 		}
 
-		// Set timestamp if not provided
-		if vibration.Timestamp.IsZero() {
-			vibration.Timestamp = time.Now()
+		// Set created_at if not provided
+		if vibration.CreatedAt.IsZero() {
+			vibration.CreatedAt = time.Now()
 		}
 	}
 
@@ -293,4 +271,57 @@ func BatchRegisterVibrations(c *gin.Context) {
 		"count":   len(vibrations),
 		"data":    vibrations,
 	})
+}
+
+// CreateVibrationWithAPIKey handles vibration data submission with API key authentication
+func CreateVibrationWithAPIKey(c *gin.Context) {
+	apiKey := c.Param("apikey")
+	if apiKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "API key is required"})
+		return
+	}
+
+	// Find sensor by API key
+	sensorCollection := config.GetCollection("sensors")
+	var sensor models.Sensor
+	err := sensorCollection.FindOne(context.Background(), bson.M{"api_key": apiKey}).Decode(&sensor)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
+		return
+	}
+
+	var vibrationData models.VibrationData
+	if err := c.ShouldBindJSON(&vibrationData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate that the provided serial number matches the sensor's serial number
+	if vibrationData.SerialNumber != "" && vibrationData.SerialNumber != sensor.SerialNumber {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Serial number does not match the authenticated sensor"})
+		return
+	}
+
+	// Set the serial number from the authenticated sensor
+	vibrationData.SerialNumber = sensor.SerialNumber
+	vibrationData.CreatedAt = time.Now()
+
+	// Validate required fields
+	if len(vibrationData.FFTX) == 0 || len(vibrationData.FFTY) == 0 || len(vibrationData.FFTZ) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "FFT data is required for all axes"})
+		return
+	}
+
+	// Insert the vibration data
+	collection := config.GetCollection("vibrations")
+	result, err := collection.InsertOne(context.Background(), vibrationData)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store vibration data"})
+		return
+	}
+
+	// Set the ID from the inserted document
+	vibrationData.ID = result.InsertedID.(primitive.ObjectID)
+
+	c.JSON(http.StatusCreated, vibrationData)
 }

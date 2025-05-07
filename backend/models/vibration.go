@@ -7,23 +7,22 @@ import (
 )
 
 type VibrationData struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	SensorID  primitive.ObjectID `bson:"sensor_id" json:"sensor_id"`
-	WarnID    primitive.ObjectID `bson:"warn_id" json:"warn_id"`
-	Timestamp time.Time          `bson:"timestamp" json:"timestamp"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	SerialNumber string             `bson:"serial_number" json:"serial_number"`
+	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
 
-	// Acceleration in g units
-	X_Axisg float32 `bson:"x_axisg" json:"x_axisg"` // X-axis acceleration in g
-	Y_Axisg float32 `bson:"y_axisg" json:"y_axisg"` // Y-axis acceleration in g
-	Z_Axisg float32 `bson:"z_axisg" json:"z_axisg"` // Z-axis acceleration in g
+	// FFT data for each axis
+	FFTX []float64 `bson:"fft_x" json:"fft_x"`
+	FFTY []float64 `bson:"fft_y" json:"fft_y"`
+	FFTZ []float64 `bson:"fft_z" json:"fft_z"`
 
-	// Acceleration in mm/s² units
-	X_Axismm_s2 float32 `bson:"x_axismm_s2" json:"x_axismm_s2"` // X-axis acceleration in mm/s²
-	Y_Axismm_s2 float32 `bson:"y_axismm_s2" json:"y_axismm_s2"` // Y-axis acceleration in mm/s²
-	Z_Axismm_s2 float32 `bson:"z_axismm_s2" json:"z_axismm_s2"` // Z-axis acceleration in mm/s²
+	// RMS values for each axis
+	RMSX float64 `bson:"rms_x" json:"rms_x"`
+	RMSY float64 `bson:"rms_y" json:"rms_y"`
+	RMSZ float64 `bson:"rms_z" json:"rms_z"`
 
-	// Velocity in mm/s units
-	X_Axismm_s float32 `bson:"x_axismm_s" json:"x_axismm_s"` // X-axis velocity in mm/s
-	Y_Axismm_s float32 `bson:"y_axismm_s" json:"y_axismm_s"` // Y-axis velocity in mm/s
-	Z_Axismm_s float32 `bson:"z_axismm_s" json:"z_axismm_s"` // Z-axis velocity in mm/s
+	// Peak values for each axis
+	PeakX float64 `bson:"peak_x" json:"peak_x"`
+	PeakY float64 `bson:"peak_y" json:"peak_y"`
+	PeakZ float64 `bson:"peak_z" json:"peak_z"`
 }

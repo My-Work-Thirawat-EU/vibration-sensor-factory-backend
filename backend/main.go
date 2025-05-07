@@ -60,6 +60,7 @@ func main() {
 	r.GET("/vibrations/:id", controllers.GetVibration)
 	r.PUT("/vibrations/:id", controllers.UpdateVibration)
 	r.DELETE("/vibrations/:id", controllers.DeleteVibration)
+	r.POST("/:apikey/vibrations", controllers.CreateVibrationWithAPIKey)
 
 	// Health Check Routes
 	// Basic endpoints to check server status
